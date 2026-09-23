@@ -49,17 +49,23 @@ Future<void> main() async {
   }
   print('ReadEntries -> ${list.length} 条桌面条目, 其中 $withIcon 条带图标');
 
-  final ll = await object.callMethod(iface, 'ExecLlCli',
-      [DBusArray.string(['list'])], replySignature: DBusSignature('iss'));
-  print('ExecLlCli -> 退出码 ${ll.returnValues[0].asInt32()}, '
-      'stdout ${ll.returnValues[1].asString().length} 字符');
+  // LaunchApp 恒回空串，从返回值上分不出成败，所以这里能验证的只有"调用链通"。
+  // 挑一个肯定不存在的应用 ID：真调一个已装的会把应用窗口弹出来，冒烟测试不该干那种事。
+  // ll-cli 那句 "package not found" 落在 linyapsd 的 stderr 上（也就是 journal），
+  // 不从这里过。
+  final launched = await object.callMethod(iface, 'LaunchApp',
+      [const DBusString('com.example.nonexistent')],
+      replySignature: DBusSignature('s'));
+  print('LaunchApp -> 返回 "${launched.returnValues[0].asString()}"'
+      '（恒为空串，看不出成败，属正常）');
 
+  // 空应用 ID 是实打实能判的：助手该拒绝，而不是照样 fork 一个 ll-cli 出来
   try {
-    await object.callMethod(iface, 'ExecLlCli',
-        [DBusArray.string(['uninstall'])], replySignature: DBusSignature('iss'));
-    print('ExecLlCli uninstall -> 竟然通过了，白名单没生效！');
+    await object.callMethod(iface, 'LaunchApp', [const DBusString('')],
+        replySignature: DBusSignature('s'));
+    print('LaunchApp 空应用 ID -> 竟然通过了！');
   } on DBusErrorException catch (e) {
-    print('ExecLlCli uninstall -> 已拒绝 (${e.errorName}: ${e.message})');
+    print('LaunchApp 空应用 ID -> 已拒绝 (${e.errorName}: ${e.message})');
   }
 
   await client.close();
