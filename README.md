@@ -108,6 +108,14 @@ ll-cli uninstall io.github.leleya-x.linyaps-seal
 落点既然是共用的，就不能无脑覆盖，应用启动时会把自己带的版本和落点上那份
 （`linyapsd --version`）比一比，只有自己这份更新才装；换新版本前会先请旧实例
 `Quit` 让位，否则文件换了而旧进程还占着 bus name，调用照旧由它响应，换了等于没换。
+**这条规则同时也是一处坑**：助手版本跟应用一起走，若只改了助手的接口却没让版本号变新，
+落点上那份旧的就会被当成"一样新"而留着，新方法在它那儿是未知方法 —— 表现是图标悄悄退回
+商店那份，从外面看不出是没换上去。所以助手的接口一改，`linyapsd/build.zig.zon` 的
+`.version` 就要跟着往上走。
+
+列表里的应用图标走的是同一条链路：`/var/lib/linglong/entries/share` 是启动器看到的那份导出，
+容器里同样没有，于是交给助手连图标字节一起读回来。相比去问玲珑商店要图标地址，
+它离线也在，而且商店不认的包（本地构建、侧载的）一样有图标；商店那边只在本地没有图标时补位。
 
 **只有这一条链路。** 即便应用就跑在宿主机上、`/var/lib/linglong/states.json`
 本来就读得到，也照样走 D-Bus 去找 linyapsd —— 留一条"这次能直读就直读"的旁路，
@@ -140,11 +148,21 @@ Dart 包名 `linyaps_seal`，上游版权归原作者。按上游的 **GPLv2** �
 - 唯一挪动的是**玲珑包 ID**：`io.github.leleya-x.linyaps-seal`。玲珑包 ID 是全系统
   唯一的键，沿用上游的会让两个包互相顶掉，装不了同一个系统上
 - 新增 `linyapsd/`（独立仓库 <https://github.com/leleya-X/Linyapsd>）：宿主侧 D-Bus 助手，替容器读
-  `/var/lib/linglong/states.json` 并跑白名单内的 `ll-cli` 只读子命令
+  `/var/lib/linglong/states.json`、读 `/var/lib/linglong/entries/share` 下导出的桌面条目与图标，
+  并跑白名单内的 `ll-cli` 只读子命令
 - 新增 `lib/utils/Backend_API/host_bridge.dart`：把助手部署到宿主 `$HOME`、
   写 D-Bus 服务文件并唤醒它
 - `lib/utils/Backend_API/Linyaps_CLI_API/linyaps_cli_helper.dart`：states.json 改为经
   `HostBridge.readStates()` 取（一律走 D-Bus，不因应用跑在宿主机上就直读原路径）
+- 新增 `lib/utils/config_classes/linyaps_entry.dart`（宿主导出的桌面条目）与
+  `lib/utils/generic_widgets/linyaps_app_icon.dart`（本地图标字节优先、其次商店链接、
+  最后通用图标）：应用图标改用本地那份，商店只在本地没有图标时补位
+- `lib/utils/Global_Variables/installed_apps.dart`：拆成"挂本地图标"与"补商店图标"两步。
+  同时修掉一处丢数据的 bug —— 原先取图标会用商店响应**重建整个列表**，
+  商店不认的应用（本地构建、侧载的）会因此从列表里消失；
+  现在商店调用只填图标地址，不碰列表本身
+- `lib/utils/Backend_API/Linyaps_Store_API/linyaps_store_api.dart`：`updateAppIcon` 改为
+  `fetchAppIconUrls`，只返回 `应用 ID -> 图标地址`，不再改动传入的列表
 - 新增 `lib/pages/startup_error/`：启动取数失败时把原因直接显示出来，而不是给一张空列表。
   相应地，各层不再把出错压成 null 或空集合 —— 读不到和"确实没有"在界面上长得一样，
   兜成一个就再也分不清是哪种

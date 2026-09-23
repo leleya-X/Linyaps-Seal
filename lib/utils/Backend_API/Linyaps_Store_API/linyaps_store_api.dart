@@ -22,11 +22,15 @@ class LinyapsStoreApiService {
   static String os_arch = gAppState_Arch.os_arch.value;
   static String repo_arch = gAppState_Arch.repo_arch.value;
 
-  // 单开获取本地应用图标的函数, 同步进行减少应用加载时间
-  static Future <List<LinyapsPackageInfo>> updateAppIcon (List<LinyapsPackageInfo> installed_apps) async {
+  // 从商店取已安装应用的图标地址, 回 appId -> 图标链接。
+  //
+  // 只回这一张表, 不碰传进来的列表: 从前这里是"拿商店返回的条目重建一份列表",
+  // 而商店只认识它上架过的包, 于是本地构建、侧载的包在图标更新之后
+  // 整个从列表里消失了 —— 取个图标顺手把数据丢了。
+  static Future <Map <String, String>> fetchAppIconUrls (List<LinyapsPackageInfo> installed_apps) async {
     // 指定具体响应API地址
     String serverUrl = '$serverHost_Store/visit/getAppDetails';
-    
+
     // 初始化待提交应用
     List <Map<String, String>> upload_installed_apps = [];
     for (LinyapsPackageInfo i in installed_apps) {
@@ -38,40 +42,26 @@ class LinyapsStoreApiService {
       });
     }
     // 创建Dio请求对象
-    Dio dio = Dio ();    
+    Dio dio = Dio ();
     // 发送并获取返回信息
     Response response = await dio.post(
       serverUrl,
       data: jsonEncode(upload_installed_apps),
-    );  
+    );
     dio.close();
 
     List <dynamic> app_info_get = response.data['data'];
-    List <LinyapsPackageInfo> returnItems = [];
+    Map <String, String> returnItems = {};
 
-    // 拿到请求后遍历返回的列表逐个加入后, 进行标准玲珑应用类返回
     for (dynamic i in app_info_get) {
-      // 先检查返回的应用信息是否在已安装应用里
-      // 商店偶尔会返回本地列表里没有的 appId(本地刚好变过), 这种没有条目可挂, 跳过。
-      // 原来这里兜了一个字段全空的 LinyapsPackageInfo 顶上, 于是界面上会多出一个
-      // 名字是空的条目 —— 凭空造出来的数据比缺一条更难查
-      final matches = installed_apps.where((app) => app.id == i['appId']);
-      if (matches.isEmpty) continue;
-      LinyapsPackageInfo app_local_info = matches.first;
-      // 依次加入元素
-      returnItems.add(
-        LinyapsPackageInfo(
-          kind: i['kind'] ?? app_local_info.kind,
-          id: i['appId'], 
-          name: app_local_info.name, 
-          base: app_local_info.base,
-          version: app_local_info.version, 
-          description: i['description'] ?? app_local_info.description, 
-          runtime: app_local_info.runtime,
-          arch: i['arch'] ?? app_local_info.arch,
-          Icon: i['icon'],
-        )
-      );
+      // 商店偶尔会返回本地列表里没有的 appId(本地刚好变过), 那种没有条目可挂, 跳过。
+      // 凭空造一条出来比缺一条更难查。
+      // 商店没给图标的条目同样跳过: 挂个空串上去, 界面只会拿到一个取不出图的地址
+      final String? appId = i['appId'];
+      final String? icon = i['icon'];
+      if (appId == null || icon == null || icon.isEmpty) continue;
+      if (!installed_apps.any((app) => app.id == appId)) continue;
+      returnItems[appId] = icon;
     }
 
     return returnItems;

@@ -5,9 +5,7 @@
 
 import 'dart:io';
 
-import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:get/get_instance/get_instance.dart';
 import 'package:get/state_manager.dart';
 import 'package:linyaps_seal/pages/about_dialog/about_dialog.dart';
@@ -17,6 +15,7 @@ import 'package:linyaps_seal/utils/check_update/check_update.dart';
 import 'package:linyaps_seal/utils/check_update/dialog/Dialog_AppHaveUpdate.dart';
 import 'package:linyaps_seal/utils/connection_check/check_connection_status.dart';
 import 'package:linyaps_seal/utils/config_classes/linyaps_package_info.dart';
+import 'package:linyaps_seal/utils/generic_widgets/linyaps_app_icon.dart';
 import 'package:linyaps_seal/utils/page_utils/middle_page/app_bar.dart';
 import 'package:yaru/icons.dart';
 import 'package:yaru/widgets.dart';
@@ -42,6 +41,8 @@ class _MainMiddlePageState extends State<MainMiddlePage> {
     // 拿到GetX全局对象
     GlobalAppState_InstalledApps globalinstalledAppList = Get.find<GlobalAppState_InstalledApps>();
     Future.microtask(() async {
+      // 本地导出的图标先挂上: 这份不联网, 所以不等网络检查
+      await globalinstalledAppList.updateAppsLocalIcon();
       // 检查网络连接状态
       // 若状态好则同时进行图标更新与应用更新检查
       bool is_connect_good = await CheckInternetConnectionStatus.staus_is_good();
@@ -158,29 +159,12 @@ class _MainMiddlePageState extends State<MainMiddlePage> {
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
                     // 左侧显示应用图标
-                    CachedNetworkImage(
-                      imageUrl: curApp.Icon ?? '',
+                    LinyapsAppIcon(
                       key: ValueKey(curApp.name),
-                      height: 50,width: 50,
-                      placeholder: (context, loadingProgress) {
-                        return Center(
-                          child: YaruCircularProgressIndicator(
-                            strokeWidth: 3.0,
-                          ),
-                        );
-                      },
-                      // fallback for .svg
-                      unsupportedImageBuilder: (context, url, bytes) {
-                        // `bytes` are the already-cached file bytes.
-                        return SvgPicture.memory(bytes); // from flutter_svg
-                      },
-                      errorBuilder: (context, error, stackTrace) => Center(
-                        child: Image(
-                          image: AssetImage(
-                            'assets/images/linyaps-generic-app.png',
-                          ),
-                        ),
-                      ),
+                      iconBytes: curApp.iconBytes,
+                      iconIsSvg: curApp.iconIsSvg,
+                      imageUrl: curApp.Icon ?? '',
+                      size: 50,
                     ),
                     const SizedBox(width: 20,),
                     Column(

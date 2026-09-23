@@ -18,10 +18,12 @@
 // 于是"取数坏了"和"一个应用都没装"在界面上变得一模一样，谁也分不出来。
 
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dbus/dbus.dart';
 
 import 'package:linyaps_seal/utils/Backend_API/version_compare/version_compare.dart';
+import 'package:linyaps_seal/utils/config_classes/linyaps_entry.dart';
 
 class HostBridge {
   /// 宿主侧助手在 session bus 上的名字/路径/接口，须与 linyapsd/src/main.zig 一致
@@ -73,6 +75,39 @@ class HostBridge {
       replySignature: DBusSignature('s'),
     );
     return reply.returnValues[0].asString();
+  }
+
+  /// 读宿主 /var/lib/linglong/entries/share 下的桌面条目与图标。
+  ///
+  /// 这是启动器看到的那份数据。容器里没有这个目录，所以同样要经助手取；
+  /// 相比去问玲珑商店，它有两个好处：离线也在，以及商店不认的包
+  /// （本地构建、侧载的）同样有图标。
+  ///
+  /// 读不到就抛，和 readStates 一样不兜 —— 界面那边按"图标是装饰"处理，
+  /// 但原因要带出来，不能变成一片没人知道为什么的通用图标。
+  static Future<List<LinyapsEntry>> readEntries() async {
+    await _ensureReady();
+    final reply = await _dbus().callMethod(
+      destination: busName,
+      path: DBusObjectPath(objectPath),
+      interface: interface,
+      name: 'ReadEntries',
+      replySignature: DBusSignature('a(ssay)'),
+    );
+
+    final entries = <LinyapsEntry>[];
+    for (final item in reply.returnValues[0].asArray()) {
+      final fields = item.asStruct();
+      final bytes = Uint8List.fromList(fields[2].asByteArray().toList());
+      entries.add(LinyapsEntry(
+        appId: fields[0].asString(),
+        desktop: fields[1].asString(),
+        // 空数组和"没有图标"是同一件事: 助手找不到图标时回的就是空数组，
+        // 界面拿到 null 就走通用图标那条路
+        iconBytes: bytes.isEmpty ? null : bytes,
+      ));
+    }
+    return entries;
   }
 
   static DBusClient _dbus() => _client ??= DBusClient.session();

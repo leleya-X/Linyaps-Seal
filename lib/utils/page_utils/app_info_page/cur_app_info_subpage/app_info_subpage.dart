@@ -3,9 +3,7 @@
 // 关闭VSCode非必要报错
 // ignore_for_file: camel_case_types, must_be_immutable, non_constant_identifier_names, curly_braces_in_flow_control_structures
 
-import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:linyaps_seal/utils/Backend_API/Linyaps_CLI_API/linyaps_cli_helper.dart';
 import 'package:linyaps_seal/utils/Global_Variables/cur_app_config_info.dart';
@@ -13,6 +11,7 @@ import 'package:linyaps_seal/utils/Global_Variables/global_config_info.dart';
 import 'package:linyaps_seal/utils/config_classes/config_cur_app.dart';
 import 'package:linyaps_seal/utils/config_classes/ext_defs/linyaps_extension.dart';
 import 'package:linyaps_seal/utils/config_classes/linyaps_package_info.dart';
+import 'package:linyaps_seal/utils/generic_widgets/linyaps_app_icon.dart';
 import 'package:linyaps_seal/utils/page_utils/app_info_page/buttons/button_createItem.dart';
 import 'package:linyaps_seal/utils/page_utils/app_info_page/cur_app_info_subpage/conf_env_widget/app_env/conf_env_app_builder.dart';
 import 'package:linyaps_seal/utils/page_utils/app_info_page/cur_app_info_subpage/conf_env_widget/global_env/conf_env_global_builder.dart';
@@ -376,29 +375,12 @@ class _AppInfoPage_AppConfState extends State<AppInfoPage_AppConf> {
                       mainAxisAlignment: MainAxisAlignment.start,
                       children: [
                         // 左侧显示应用图标
-                        CachedNetworkImage(
-                          imageUrl: curAppInfo.Icon ?? '',
+                        LinyapsAppIcon(
                           key: ValueKey(curAppInfo.name),
-                          height: 160,width: 160,
-                          placeholder: (context, loadingProgress) {
-                            return Center(
-                              child: YaruCircularProgressIndicator(
-                                strokeWidth: 3.0,
-                              ),
-                            );
-                          },
-                          // fallback for .svg
-                          unsupportedImageBuilder: (context, url, bytes) {
-                            // `bytes` are the already-cached file bytes.
-                            return SvgPicture.memory(bytes); // from flutter_svg
-                          },
-                          errorBuilder: (context, error, stackTrace) => Center(
-                            child: Image(
-                              image: AssetImage(
-                                'assets/images/linyaps-generic-app.png',
-                              ),
-                            ),
-                          ),
+                          iconBytes: curAppInfo.iconBytes,
+                          iconIsSvg: curAppInfo.iconIsSvg,
+                          imageUrl: curAppInfo.Icon ?? '',
+                          size: 160,
                         ),
                         const SizedBox(width: 40,),
                         Column(

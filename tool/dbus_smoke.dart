@@ -4,7 +4,7 @@
 // linyapsd 的端到端冒烟测试。
 //
 // 故意不预先启动 linyapsd：让它由 session bus 按需激活，
-// 这样一次跑通既验证了四个方法，也验证了激活链路本身
+// 这样一次跑通既验证了各个方法，也验证了激活链路本身
 // （激活这条路上出过问题，手工启动正常、bus 拉起就没响应）。
 //
 //   dart run tool/dbus_smoke.dart
@@ -36,6 +36,18 @@ Future<void> main() async {
       iface, 'ReadStates', const [], replySignature: DBusSignature('s'));
   final text = states.returnValues[0].asString();
   print('ReadStates-> ${text.length} 字符, 开头: ${text.substring(0, 40)}');
+
+  // 桌面条目: 数一下有多少条, 以及有多少条真带着图标字节。
+  // 只看条数不够 —— 图标读不到时助手照样会回条目(字节数组为空),
+  // 只报条数的话, "有 desktop 没图标"这种半截结果看起来和全好一样
+  final entries = await object.callMethod(
+      iface, 'ReadEntries', const [], replySignature: DBusSignature('a(ssay)'));
+  final list = entries.returnValues[0].asArray();
+  int withIcon = 0;
+  for (final item in list) {
+    if (item.asStruct()[2].asByteArray().isNotEmpty) withIcon++;
+  }
+  print('ReadEntries -> ${list.length} 条桌面条目, 其中 $withIcon 条带图标');
 
   final ll = await object.callMethod(iface, 'ExecLlCli',
       [DBusArray.string(['list'])], replySignature: DBusSignature('iss'));

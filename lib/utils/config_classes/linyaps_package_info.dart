@@ -2,6 +2,8 @@
 
 // ignore_for_file: non_constant_identifier_names
 
+import 'dart:typed_data';
+
 // 设置一个玲珑包类别的enum枚举
 enum PackageType {
   app,
@@ -25,7 +27,9 @@ class LinyapsPackageInfo {
   List <String>? extensions;
 
 
-  String? Icon;    // 应用图标所在链接
+  String? Icon;    // 应用图标所在链接(玲珑商店给的, 要联网)
+  Uint8List? iconBytes;    // 应用图标字节(宿主 /var/lib/linglong/entries 导出的那份)
+  bool iconIsSvg;    // 上面那份字节是不是 SVG, 决定用哪个解码器画
   String? repoName;    // 应用所在源名称
   String? channel;   // 应用所在渠道
   String? module;    // 所用的玲珑模块
@@ -52,6 +56,8 @@ class LinyapsPackageInfo {
     required this.description,
     required this.arch,
     this.Icon,
+    this.iconBytes,
+    this.iconIsSvg = false,
 
     // 权限管理部分
     this.extensions,
