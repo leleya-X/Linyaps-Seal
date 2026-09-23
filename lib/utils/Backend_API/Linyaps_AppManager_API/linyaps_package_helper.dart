@@ -13,11 +13,10 @@ class LinyapsPackageHelper {
   // 获取玲珑本地应用的信息
   static Future <List<LinyapsPackageInfo>> get_installed_apps () async {
     // 先异步获取玲珑本地信息
+    // 取不到会抛, 不在这里兜成空列表 —— "玲珑没装/读不到"和"一个应用都没装"
+    // 在界面上都是空列表, 兜下去就等于把前者说成后者, 用户永远不知道出错在哪
     dynamic linyapsLocalInfo = await LinyapsCliHelper.get_linyaps_all_local_info();
-    
-    // 遇到没有安装玲珑或者没安装应用等情况,直接返回空列表
-    if (linyapsLocalInfo == null) return [];
-    
+
     // 初始化待返回已安装应用的临时对象
     List <LinyapsPackageInfo> installedItems = [];
 
@@ -58,31 +57,31 @@ class LinyapsPackageHelper {
   static Future <Map <String, List<Extension>>?> get_config_extension_global () async {
     // 先获取全局配置
     Map <String, dynamic>? app_config_get = await LinyapsCliHelper.get_linyaps_global_config();
-    // 初始化待返回内容
-    Map <String, List<Extension>> returnItems = {};
+    // 用户还没写过全局配置, 自然没有扩展
+    if (app_config_get == null) return null;
+    // 写过配置但没有 ext_defs, 同样是"没有扩展", 返回空表
+    final extDefs = app_config_get["ext_defs"];
+    if (extDefs == null) return {};
 
-    // 全局配置如果存在则返回, 否则返回空
-    // 使用try-catch语法提升语法简洁性
-    try {
-      app_config_get!["ext_defs"]!.forEach((key, value) {
-        // 在循环内初始化待赋值的extensions列表
-        String base = key;
-        List <Extension> extensions = [];
-        for (var i in value) {
-          extensions.add(
-            Extension(
-              name: i['name'], 
-              version: i['version'], 
-              directory: i['directory']
-            ),
-          );
-        }
-        returnItems[base] = extensions;
-      });
-      return returnItems;
-    } catch (e) {
-      return null;
-    }
+    // 后面不再兜: 结构不对就让它抛出去。原来这里用 try-catch 把任何异常
+    // 都变成 null, 结果"配置写坏了"和"没配扩展"返回的是同一个值, 谁也分不清
+    Map <String, List<Extension>> returnItems = {};
+    extDefs.forEach((key, value) {
+      // 在循环内初始化待赋值的extensions列表
+      String base = key;
+      List <Extension> extensions = [];
+      for (var i in value) {
+        extensions.add(
+          Extension(
+            name: i['name'],
+            version: i['version'],
+            directory: i['directory']
+          ),
+        );
+      }
+      returnItems[base] = extensions;
+    });
+    return returnItems;
   }
 
   // 获取应用单独配置信息的方法

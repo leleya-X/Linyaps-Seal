@@ -9,7 +9,6 @@
 .buildlog/
 .history
 .svn/
-.swiftpm/
 migrate_working_dir/
 
 # IntelliJ related
@@ -28,7 +27,6 @@ migrate_working_dir/
 
 # Flutter/Dart/Pub related
 **/doc/api/
-**/ios/Flutter/.last_build_id
 .dart_tool/
 .flutter-plugins-dependencies
 .pub-cache/
@@ -42,10 +40,27 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+# pubspec.lock 是**入库**的，别忽略：这是个应用（publish_to: none），不是被人
+# 当依赖引入的库。锁文件在这里记的是"这个应用是拿哪套依赖跑起来的"，
+# 别人 clone 下来才能装出一样的依赖树 —— 库才该忽略它，让下游自己解。
 
-# Flutter pubspec.lockd
-pubspec.lock
+# linyapsd 是独立仓库，由它自己跟踪
+/linyapsd/
+
+# ll-killer 打包链路
+# 工具本体是可下载的二进制（github.com/System233/ll-killer-go/releases），不入库
+/ll-killer
+# build-aux/ 是 ll-killer init 生成的脚本，等同于工具的产物：
+# 内容随工具版本而变，改它等于改工具。第一次打包前跑一次 ./ll-killer init
+# （别名 ./ll-killer build-aux）即可，工具本体不在库里，脚本也就没理由在
+/build-aux/
+# 它的工作目录：构建输出、overlay 残留、缓存，以及自动生成的 entry.sh
+/linglong/output/
+/linglong/overlay/
+/linglong/cache/
+/linglong/entry.sh
+# 打包时由 linglong.yaml 解析出来的依赖清单，同样是构建产物
+/linglong/depends.yaml
+# 打包产物
+/*.layer
+/*.uab

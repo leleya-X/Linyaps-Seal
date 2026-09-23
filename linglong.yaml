@@ -1,0 +1,76 @@
+version: "1"
+
+package:
+  id: io.github.leleya-x.linyaps-seal
+  name: linyaps-seal
+  # 玲珑包版本必须四段。这是包版本, 和 pubspec.yaml 里的应用版本是两回事,
+  # 但要一起改: 图省事的话让前三位与本版本号保持一致
+  version: 0.0.18.0
+  kind: app
+  description: |
+    如意玲珑应用权限管理器（基于社区项目 Linyaps-Seal 的玲珑打包版，GPLv2）。
+    经宿主侧 D-Bus 助手 linyapsd 穿透读取 /var/lib/linglong/states.json。
+
+command:
+  - /opt/apps/io.github.leleya-x.linyaps-seal/files/bin/linyaps_seal
+
+# base 自带 GTK3 3.24.9，Flutter Linux 桌面端所需库均可满足，无需额外 runtime
+base: org.deepin.base/25.2.2
+
+build: |
+  # 不用在这里跑 flutter build：
+  # ll-killer 的构建环境在用户命名空间里，flutter 会因"以 root 运行"拒绝构建，
+  # 且 SDK 的 include 路径在映射后的 rootfs 里断链。
+  # 因此 Flutter 侧在宿主机上预先构建，这里只负责把产物装进包。
+  test -x build/linux/x64/release/bundle/linyaps_seal || {
+    echo "缺少预构建产物，请先在项目根目录执行:" >&2
+    echo "  flutter build linux --release" >&2
+    exit 1
+  }
+
+  # 宿主侧助手同样在宿主机上预构建（见 linyapsd/README.md）。
+  # 缺产物就报错退出，不退化成"装一个用不了穿透功能的应用"
+  test -x linyapsd/zig-out/bin/linyapsd || {
+    echo "缺少 linyapsd 预构建产物，请先在 linyapsd/ 下执行:" >&2
+    echo "  ./tools/build-deps.sh && zig build -Doptimize=ReleaseSmall" >&2
+    exit 1
+  }
+
+  # 整个 bundle 装到 files/bin/ 下，避免 lib/、data/ 被叠加到容器根目录
+  mkdir -p $PREFIX/bin
+  cp -r build/linux/x64/release/bundle/. $PREFIX/bin/
+
+  # 助手与主程序同目录: 容器内由 host_bridge.dart 找到它，再部署到宿主 $HOME
+  cp linyapsd/zig-out/bin/linyapsd $PREFIX/bin/
+
+  # 桌面入口与图标。装到 $PREFIX/share 下，玲珑会把它们导出到
+  # /var/lib/linglong/entries/share（宿主的 XDG_DATA_DIRS 里有它），
+  # 这样应用才出现在启动器里、窗口才认得出自己的图标。
+  #
+  # desktop 里写的是包内可执行文件路径，build-aux/post-setup.sh 会改写成
+  # ll-cli run 的调用形式并补 X-linglong=，别在这儿手写 ll-cli。
+  test -f packaging/io.github.leleya-x.linyaps-seal.desktop || {
+    echo "缺少 packaging/io.github.leleya-x.linyaps-seal.desktop" >&2
+    exit 1
+  }
+  test -d packaging/icons/hicolor || {
+    echo "缺少 packaging/icons/hicolor，跑一下 packaging/render-icons.sh" >&2
+    exit 1
+  }
+
+  mkdir -p $PREFIX/share/applications $PREFIX/share/icons
+  cp packaging/io.github.leleya-x.linyaps-seal.desktop \
+     $PREFIX/share/applications/io.github.leleya-x.linyaps-seal.desktop
+  cp -r packaging/icons/hicolor $PREFIX/share/icons/
+
+  # 再放一份矢量图。各家桌面按 DPI 挑尺寸时优先用 PNG，
+  # 挑不到合适的档位就落回 scalable，有它就不会退到通用图标
+  mkdir -p $PREFIX/share/icons/hicolor/scalable/apps
+  cp packaging/linyaps-seal.svg \
+     $PREFIX/share/icons/hicolor/scalable/apps/io.github.leleya-x.linyaps-seal.svg
+
+  # 许可证全文。本项目按 GPLv2 分发，该许可要求随二进制分发时附上全文；
+  # 不装的话，拿到这个包的人手上就没有本该随附的那份许可证。
+  # (本项目相对上游的修改标注见仓库 README)
+  mkdir -p $PREFIX/share/doc/linyaps-seal
+  cp LICENSE $PREFIX/share/doc/linyaps-seal/LICENSE

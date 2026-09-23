@@ -1,0 +1,28 @@
+[Desktop Entry]
+Type=Application
+Name=LinyapsSeal
+Name[zh_CN]=玲珑应用权限管理器
+Comment=Manage permissions of Linyaps applications
+Comment[zh_CN]=管理如意玲珑应用的权限、环境变量与扩展配置
+Keywords=linglong;linyaps;permission;seal;
+Keywords[zh_CN]=玲珑;如意玲珑;权限;应用管理;
+Icon=io.github.leleya-x.linyaps-seal
+Exec=/opt/apps/io.github.leleya-x.linyaps-seal/files/bin/linyaps_seal
+Terminal=false
+Categories=Settings;
+StartupNotify=false
+# 这个值是 GTK 的 application-id（linux/CMakeLists.txt 的 APPLICATION_ID），
+# 不是玲珑包 ID —— 前者是窗口在桌面里的身份，后者是包的身份。本仓库的
+# application-id 跟着上游走，于是和包 ID 不同名，就得靠这一行把窗口
+# 认领回本入口；没有它，任务栏认不出窗口属于哪个应用，图标会退回通用图标。
+StartupWMClass=io.mozixun.linyaps_seal
+
+# 上面这个 Exec 是**包内**路径，别改成 ll-cli 的调用形式。
+# 打成玲珑包时 build-aux/post-setup.sh 会把它改写为
+#   Exec=/usr/bin/ll-cli run io.github.leleya-x.linyaps-seal -- <上面的路径>
+# 并补上 X-linglong=io.github.leleya-x.linyaps-seal（TryExec=/usr/bin/ll-cli 由玲珑在安装时加）。
+# 在这儿手写 ll-cli 的话会被再套一层，变成 ll-cli run ... -- ll-cli run ...
+#
+# Icon= 与图标文件名都用包 ID，图标装在 share/icons/hicolor/*/apps/ 下，同名同 ID，
+# 启动器靠它找到图标。窗口那一边另有一条线：窗口的 GTK application-id 是
+# io.mozixun.linyaps_seal（跟着上游走），与包 ID 不同名，所以上面那行 StartupWMClass 不能删。

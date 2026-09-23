@@ -52,19 +52,12 @@ class LinyapsStoreApiService {
     // 拿到请求后遍历返回的列表逐个加入后, 进行标准玲珑应用类返回
     for (dynamic i in app_info_get) {
       // 先检查返回的应用信息是否在已安装应用里
-      LinyapsPackageInfo app_local_info = installed_apps.firstWhere(
-        (app) => app.id == i['appId'],
-        orElse: () => LinyapsPackageInfo(
-          kind: 'app',
-          id: '', 
-          base: '',
-          name: '', 
-          version: '', 
-          description: '', 
-          runtime: '',
-          arch: ''
-        )
-      );
+      // 商店偶尔会返回本地列表里没有的 appId(本地刚好变过), 这种没有条目可挂, 跳过。
+      // 原来这里兜了一个字段全空的 LinyapsPackageInfo 顶上, 于是界面上会多出一个
+      // 名字是空的条目 —— 凭空造出来的数据比缺一条更难查
+      final matches = installed_apps.where((app) => app.id == i['appId']);
+      if (matches.isEmpty) continue;
+      LinyapsPackageInfo app_local_info = matches.first;
       // 依次加入元素
       returnItems.add(
         LinyapsPackageInfo(

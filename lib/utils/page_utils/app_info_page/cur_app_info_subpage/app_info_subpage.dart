@@ -314,6 +314,22 @@ class _AppInfoPage_AppConfState extends State<AppInfoPage_AppConf> {
     return GetBuilder<GlobalAppState_AppConfig>(
       builder: (gAppBuilder) {
 
+        // 这个应用的配置没读出来, 就把原因摆在这里 ——
+        // 否则页面会显示成"这个应用没配过扩展和环境变量", 而那不是事实
+        if (gAppBuilder.loadError.value != null) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                '读取该应用的配置失败: ${gAppBuilder.loadError.value}',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                ),
+              ),
+            ),
+          );
+        }
+
         /*--------------------------扩展部分-------------------------*/
 
         // 在Builder内获取Base扩展信息
@@ -553,7 +569,19 @@ class _AppInfoPage_AppConfState extends State<AppInfoPage_AppConf> {
                                   );
                                 }
                                 catch (e) {
-                                  return SizedBox.shrink();
+                                  // 原来这里返回 SizedBox.shrink(), 整个条目凭空消失,
+                                  // 看着就像"这个应用没有这一条"。既然注释说这是在绕
+                                  // Flutter 的提早加载, 那绕过去之后更该留下痕迹:
+                                  // 真触发了要看得见, 否则这个 bug 会一直悄悄吃掉条目
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                    child: Text(
+                                      '环境变量条目加载失败: $e',
+                                      style: TextStyle(
+                                        color: Theme.of(context).colorScheme.error,
+                                      ),
+                                    ),
+                                  );
                                 }
                               },
                             )
@@ -676,9 +704,19 @@ class _AppInfoPage_AppConfState extends State<AppInfoPage_AppConf> {
                                     },
                                   );
                                 } catch (e) {
-                                  return SizedBox.shrink();
+                                  // 同上面环境变量那处: 失败不再让条目消失,
+                                  // 而是把原因摆在原位上
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                    child: Text(
+                                      '扩展条目加载失败: $e',
+                                      style: TextStyle(
+                                        color: Theme.of(context).colorScheme.error,
+                                      ),
+                                    ),
+                                  );
                                 }
-                              },  
+                              },
                             )
                             : const SizedBox.shrink(),
                           ],  

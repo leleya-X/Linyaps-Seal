@@ -1,4 +1,4 @@
-// 玲珑Seal头部导航栏组件
+// LinyapsSeal 头部导航栏组件
 
 // 关闭VSCode非必要报错
 // ignore_for_file: camel_case_types, non_constant_identifier_names, curly_braces_in_flow_control_structures, must_be_immutable

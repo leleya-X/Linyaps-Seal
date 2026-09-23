@@ -406,6 +406,22 @@ class _AppInfoPage_GlobalConfState extends State<AppInfoPage_GlobalConf> {
     return GetBuilder<GlobalAppState_Config>(
       builder:(gAppBuild) {
 
+        // 全局配置没读出来就把原因摆在这里 ——
+        // 否则页面显示的是"没有全局扩展、没有全局环境变量", 而那不是事实
+        if (gAppBuild.loadError.value != null) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                '读取全局配置失败: ${gAppBuild.loadError.value}',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                ),
+              ),
+            ),
+          );
+        }
+
         /*----------------获取扩展部分----------------*/
         // 获取构建时扩展信息
         // 涉及到列表渲染时需强制非空防止UI时出现问题

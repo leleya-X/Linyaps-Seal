@@ -3,6 +3,8 @@
 // 忽略VSCode非必要报错
 // ignore_for_file: non_constant_identifier_names, curly_braces_in_flow_control_structures
 
+import 'dart:io';
+
 import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
@@ -28,7 +30,8 @@ class MainMiddlePage extends StatefulWidget {
 class _MainMiddlePageState extends State<MainMiddlePage> {
 
   // 在当前页面检查应用是否有更新的方法
-  Future <bool> isAppHaveUpdate() async {
+  // null 表示这次没查成(断网等), 与 false(确实没有新版本)不同
+  Future <bool?> isAppHaveUpdate() async {
     return await CheckAppUpdate.isAppHaveUpate();
   }
 
@@ -44,10 +47,20 @@ class _MainMiddlePageState extends State<MainMiddlePage> {
       bool is_connect_good = await CheckInternetConnectionStatus.staus_is_good();
       if (is_connect_good) {
         Future.microtask(() async {
-          await globalinstalledAppList.updateAppsIcon();
+          // 图标取不到不算大事: 列表照常可用, 界面上表现为一列通用图标 ——
+          // 那本身是看得见的降级, 所以这里不打断页面。
+          // 但不能一声不吭: 满屏通用图标的时候, 这条日志是唯一的线索
+          try {
+            await globalinstalledAppList.updateAppsIcon();
+          } catch (e) {
+            stderr.writeln('[图标] 从玲珑商店取图标失败: $e');
+          }
         });
         Future.microtask(() async {
-          if (await isAppHaveUpdate()) {
+          // 只在确实查到有新版时才弹。查不成(null)不弹, 但也不等于"已是最新" ——
+          // 只是这两种情况都不需要用户做什么, 所以都看不到东西
+          final bool? hasUpdate = await isAppHaveUpdate();
+          if (hasUpdate == true) {
             // 如果应用有更新就弹出对话框
             if (mounted) showDialog(
               context: context, 

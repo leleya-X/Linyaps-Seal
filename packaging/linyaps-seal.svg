@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  LinyapsSeal 应用图标（源文件）。
+
+  图案：玲珑的等轴立方体 + 一枚钥匙孔。
+  立方体是玲珑自己的标识语言（包内应用列表里的通用占位图就是它），
+  钥匙孔点出本程序做的事 —— 管权限。孔是真镂空的（mask 挖掉），
+  所以底下那块底色透过来，换主题色不用跟着改这里。
+
+  改完这个文件要跑 packaging/render-icons.sh 重出 PNG。
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5A7BF2"/>
+      <stop offset="1" stop-color="#2A3EB1"/>
+    </linearGradient>
+
+    <!-- 钥匙孔：白的留着，黑的是要挖掉的 -->
+    <mask id="cut">
+      <rect width="512" height="512" fill="#ffffff"/>
+      <circle cx="256" cy="215" r="40" fill="#000000"/>
+      <path d="M236,244 L276,244 L288,310 A32,32 0 0 1 224,310 Z" fill="#000000"/>
+    </mask>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#tile)"/>
+
+  <!-- 等轴立方体：顶面正白，左暗右亮，做出体积 -->
+  <g mask="url(#cut)">
+    <path d="M256,96 L404,181 L256,266 L108,181 Z" fill="#ffffff"/>
+    <path d="M108,181 L256,266 L256,436 L108,351 Z" fill="#bcc7ee"/>
+    <path d="M256,266 L404,181 L404,351 L256,436 Z" fill="#e2e7fa"/>
+  </g>
+
+</svg>

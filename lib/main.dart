@@ -11,10 +11,12 @@ import 'package:flutter_single_instance/flutter_single_instance.dart';
 import 'package:flutter_window_close/flutter_window_close.dart';
 import 'package:get/get.dart';
 import 'package:linyaps_seal/pages/middle_page.dart';
+import 'package:linyaps_seal/pages/startup_error/startup_error.dart';
 import 'package:linyaps_seal/utils/Global_Variables/cur_app_config_info.dart';
 import 'package:linyaps_seal/utils/Global_Variables/global_config_info.dart';
 import 'package:linyaps_seal/utils/Global_Variables/installed_apps.dart';
 import 'package:linyaps_seal/utils/Global_Variables/repo_arch.dart';
+import 'package:linyaps_seal/utils/app_version/app_version.dart';
 import 'package:yaru/settings.dart';
 
 void main() async {
@@ -45,11 +47,18 @@ void main() async {
   GlobalAppState_InstalledApps appGlobalInfo_installedApps = Get.find<GlobalAppState_InstalledApps>();
   GlobalAppState_Config appGlobalInfo_globalConf = Get.find<GlobalAppState_Config>();
 
+  // 读出自己的版本号(来自 pubspec, 见 app_version.dart)。
+  // 关于页和更新检查都用它, 全程只有这一份
+  await AppVersion.load();
+
   // 启动时更新系统架构信息
   await appGlobalInfo_arch.getUnameArch();
   await appGlobalInfo_arch.getLinyapsStoreApiArch();
 
-  // 再更新已安装应用列表
+  // 更新已安装应用列表。
+  // 数据在宿主侧, 由 linyapsd 经 D-Bus 提供 (见 host_bridge.dart),
+  // 部署助手这件事就在这条链路里顺带做了 —— 不另设一步"预热":
+  // 那一步的失败照样得有人接, 等于同样的错误要在两个地方各报一次
   await appGlobalInfo_installedApps.updateInstalledAppsList();
 
   // 再更新全局的应用配置
@@ -64,9 +73,6 @@ void main() async {
 }
 
 class MyApp extends StatefulWidget {
-  
-  // 在这里声明当前应用版本号
-  static String cur_version = '0.0.18';
 
   const MyApp({super.key});
   @override
@@ -81,7 +87,25 @@ class _MyAppState extends State<MyApp> {
         data: YaruThemeData(
           themeMode: ThemeMode.system,
         ),
-        child: MainMiddlePage(),
+        child: Obx(() {
+          // 启动取数失败就把原因摆出来, 而不是照常进主界面 ——
+          // 读不到数据时界面上的表现是一张空列表, 那和"确实没有数据"
+          // 长得一模一样, 等于替出错这件事说了谎
+          final loadError = AppVersion.loadError
+              ?? Get.find<GlobalAppState_InstalledApps>().loadError.value
+              ?? Get.find<GlobalAppState_Config>().loadError.value;
+          if (loadError != null) {
+            return StartupErrorView(
+              message: loadError,
+              onRetry: () async {
+                await AppVersion.load();
+                await Get.find<GlobalAppState_InstalledApps>().updateInstalledAppsList();
+                await Get.find<GlobalAppState_Config>().updateGlobalConfig();
+              },
+            );
+          }
+          return const MainMiddlePage();
+        }),
       ),
     );
   }

@@ -10,9 +10,9 @@ import 'package:url_launcher/url_launcher.dart';
 class MyDialog_AppHaveUpdate extends StatelessWidget {
   const MyDialog_AppHaveUpdate({super.key});
 
-  // 打开Gitee项目主页函数
-  Future <void> launchProjectGiteeUrl () async {
-    Uri project_url = Uri.parse('https://gitee.com/LFRon/Linyaps-Seal/releases/latest');
+  // 打开项目发布页函数
+  Future <void> launchProjectReleaseUrl () async {
+    Uri project_url = Uri.parse('https://github.com/leleya-X/Linyaps-Seal/releases/latest');
     await launchUrl(project_url);
   }
 
@@ -74,7 +74,7 @@ class MyDialog_AppHaveUpdate extends StatelessWidget {
                       ),
                     ), 
                     onPressed: () async {
-                      await launchProjectGiteeUrl();
+                      await launchProjectReleaseUrl();
                       // 弹出窗口后进行Pop
                       if (context.mounted) Navigator.of(context).pop();
                     },

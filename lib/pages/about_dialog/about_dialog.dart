@@ -2,7 +2,8 @@
 
 // 使用MyAbout是防止与Flutter内置的AboutDialog打架
 import 'package:flutter/material.dart';
-import 'package:linyaps_seal/main.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:linyaps_seal/utils/app_version/app_version.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:yaru/yaru.dart';
 
@@ -18,14 +19,14 @@ class _MyAboutDialogState extends State<MyAboutDialog> {
   // 按下报告问题按钮跳转的页面
   Future <void> reportIssue () async {
     await launchUrl(
-      Uri.parse('https://gitee.com/LFRon/Linyaps-Seal/issues')
+      Uri.parse('https://github.com/leleya-X/Linyaps-Seal/issues')
     );
   }
 
   // 按下查看源代码按钮跳转的页面
   Future <void> visitSource () async {
     await launchUrl(
-      Uri.parse('https://gitee.com/LFRon/Linyaps-Seal')
+      Uri.parse('https://github.com/leleya-X/Linyaps-Seal')
     );
   }
 
@@ -46,14 +47,16 @@ class _MyAboutDialogState extends State<MyAboutDialog> {
         height: 355,
         child: Column(
           children: [
-            Image.asset(
-              'assets/images/linyaps-generic-app.png',
+            // 本应用自己的图标。用 packaging/ 下那份 SVG 源文件,
+            // 也就是打包进玲珑包和桌面快捷方式用的同一张
+            SvgPicture.asset(
+              'packaging/linyaps-seal.svg',
               width: 100,
               height: 100,
             ),
             const SizedBox(height: 10,),
             Text(
-              '玲珑Seal',
+              'LinyapsSeal',
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
@@ -77,7 +80,7 @@ class _MyAboutDialogState extends State<MyAboutDialog> {
               ),
               child: Center(
                 child: Text(
-                  MyApp.cur_version,
+                  AppVersion.current,
                   style: TextStyle(
                     color: YaruColors.lubuntuBlue,
                     fontSize: 15,
