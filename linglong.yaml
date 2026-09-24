@@ -1,3 +1,8 @@
+
+#请注意，由于编译需要的环境较为复杂，这里的build是直接从github拉已经编译好的二进制文件下来打包的。
+#如果想自己编译，请注释掉sources字段，运行packaging/make-prebuilt.编译出本地prebulid,再使用LL的打包工具打包成LL可用的包
+#本地编译请注意依赖问题。
+
 version: "1"
 
 package:
