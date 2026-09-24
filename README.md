@@ -55,10 +55,7 @@ flutter build linux --release        # 产出 build/linux/x64/release/bundle/
 落点既然是共用的，就不能无脑覆盖，应用启动时会把自己带的版本和落点上那份
 （`linyapsd --version`）比一比，只有自己这份更新才装；换新版本前会先请旧实例
 `Quit` 让位，否则文件换了而旧进程还占着 bus name，调用照旧由它响应，换了等于没换。
-**这条规则同时也是一处坑**：助手版本跟应用一起走，若只改了助手的接口却没让版本号变新，
-落点上那份旧的就会被当成"一样新"而留着，新方法在它那儿是未知方法 —— 表现是图标悄悄退回
-商店那份，从外面看不出是没换上去。所以助手的接口一改，`linyapsd/build.zig.zon` 的
-`.version` 就要跟着往上走。
+
 
 列表里的应用图标走的是同一条链路：`/var/lib/linglong/entries/share` 是启动器看到的那份导出，
 容器里同样没有，于是交给助手连图标字节一起读回来。相比去问玲珑商店要图标地址，
@@ -117,11 +114,15 @@ Dart 包名 `linyaps_seal`，上游版权归原作者。按上游的 **GPLv2** �
 - 新增 `linglong.yaml` 打包配置。配套的 ll-killer 是外部工具，不入库；它生成的
   `build-aux/` 脚本同理，已由 `.gitignore` 排除，首次打包前跑一次 `./ll-killer init`
 - 打包步骤收进 `packaging/install-prebuilt.sh`：Flutter bundle 与 linyapsd 先在宿主上编成
-  一个预构建包（新增 `packaging/make-prebuilt.sh`，产物落在 `dist/`，不入库），
-  构建容器从挂载进来的工程目录直接读它 —— 构建全程不联网，也不需要另去发布一份。
-  脚本会核对包内版本和架构：产物过期、装错架构都直接报错，不会装出一个
-  「看着成功」的错包。注意：改了 linyapsd 之后它是独立仓库，要照旧把版本号往上抬，
-  否则宿主上那份换不掉
+  一个预构建包（新增 `packaging/make-prebuilt.sh`，产物同时落在 `linglong/sources/`
+  与 `dist/`，都不入库），构建容器只负责装它。`linglong.yaml` 里带 `sources`
+  指向 GitHub Release 上的那份产物，这是提交到社区仓库后对方构建机唯一能取到它的
+  途径；本地则靠 `make-prebuilt.sh` 把同一份放进 `linglong/sources/`，再跑
+  `ll-builder build --offline`（`./ll-killer layer build` 也行，它不看 sources）——
+  注意清单里有 `sources` 时普通的 `ll-builder build` 一律重新下载，本地放好的那份它不认。
+  脚本会核对包内版本（对清单的 `package.version`）和架构：产物过期、装错架构都直接报错，
+  不会装出一个「看着成功」的错包。注意：改了 linyapsd 之后它是独立仓库，
+  要照旧把版本号往上抬，否则宿主上那份换不掉
 - `pubspec.lock` 由忽略改为入库：这是应用不是库，锁文件该跟着走，别人 clone 下来
   才能装出一样的依赖树
 - 新增 `.gitattributes`：统一按 LF 入库检出，避免 Windows 上 clone 出来的

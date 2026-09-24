@@ -61,8 +61,12 @@ app.*.map.json
 /linglong/entry.sh
 # 打包时由 linglong.yaml 解析出来的依赖清单，同样是构建产物
 /linglong/depends.yaml
-# packaging/make-prebuilt.sh 打出来的预构建包：打包时构建容器从这儿取，
-# 但它是产物、11 MB 的二进制，不入库（谁 clone 下来自己跑一次那个脚本就有）
+# ll-builder 解包 sources 的位置。远程构建下载下来的产物落这儿；
+# 本地构建由 make-prebuilt.sh 把同一份放进来（见 linglong.yaml 的注释）。
+# 里面的东西都是产物，不入库
+/linglong/sources/
+# packaging/make-prebuilt.sh 打出来的预构建包（传 Release 用的那份）：
+# 11 MB 的二进制，同样不入库（谁 clone 下来自己跑一次那个脚本就有）
 /dist/
 
 # 打包产物

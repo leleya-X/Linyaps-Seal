@@ -3,18 +3,20 @@
 #
 #   ./packaging/make-prebuilt.sh
 #
-# 产物：dist/linyaps-seal-<应用版本>-<架构>-prebuilt.tar.gz
+# 产物：linyaps-seal-<应用版本>-<架构>-prebuilt.tar.gz，同时放在
+#   linglong/sources/   构建读它的那个位置，本地带 --offline 就能离线编
+#   dist/               传 GitHub Release 用的，清单里 sources 的 url 指向它
 #
 # 为什么产物在容器外编：玲珑的构建容器里编不了这两份 ——
 #   - Flutter 桌面端：构建跑在用户命名空间里，flutter 会因「以 root 运行」拒绝构建，
 #     而且 SDK 的 include 路径在映射后的 rootfs 里断链
 #   - linyapsd：按 musl 静态编，容器里没有 zig，也没有编 libdbus 静态库的那套工具
-# 所以先在这里编好，再由 packaging/install-prebuilt.sh（构建容器里跑的那一步）
-# 从 dist/ 取走 —— 整个工程目录是挂载进容器的，path 直通，不联网、不需要发布。
 #
 # 换版本、或者改了任何会进包的东西之后都要重跑一次：产物是工作区里一个
 # 不受版本约束的文件，忘了重打就会装进上一版的程序（install-prebuilt.sh 里
 # 有版本核对，对不上会直接报错，不会静悄悄地装错）。
+# 换版本还得把新产物传到 Release 的对应标签下、并更新清单里的 url 与 digest：
+# 远程构建拿不到这份产物，就编不出东西（脚本最后会告诉你该填什么）。
 set -euo pipefail
 
 ROOT=$(dirname "$(readlink -f "$0")")/..
@@ -76,8 +78,7 @@ HELPER=linyapsd/zig-out/bin/linyapsd
 echo "    助手自报版本: $("$HELPER" --version)"
 
 echo "==> 打包"
-OUT="dist/linyaps-seal-$VERSION-$ARCH-prebuilt.tar.gz"
-mkdir -p dist
+NAME="linyaps-seal-$VERSION-$ARCH-prebuilt.tar.gz"
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
 
@@ -92,12 +93,47 @@ install -m755 "$HELPER" "$STAGE"/linyapsd
 # 而那个 uid 在容器的用户命名空间里往往没被映射，chown 报 EINVAL，
 # 整个构建就卡在这个谁也没想过的位置上。（这不是假设，是踩过的。）
 # 属主本来也不该由打包机决定：包里的文件归谁，是打包那一步的事。
-tar --owner=0 --group=0 --numeric-owner -czf "$OUT" -C "$STAGE" .
 
-SUM=$(sha256sum "$OUT" | cut -d' ' -f1)
+# 两份，内容一样，去处不同：
+#   linglong/sources/  构建真正读的那个位置 —— 远程是 ll-builder 把 sources
+#                      下载到这儿，本地就是这一份，两边同路
+#   dist/              传 GitHub Release 用的，清单里 sources 的 url 指向它
+for d in linglong/sources dist; do
+    mkdir -p "$d"
+    # 每个位置只留这一份：install-prebuilt.sh 见到不止一份就不猜，
+    # 而"猜错"的表现是打出来的包和以为的不是同一份，日志上看不出异常
+    for old in "$d"/*-prebuilt.tar.gz; do
+        [ -e "$old" ] || continue
+        rm -f "$old"
+        echo "    清掉旧的: $old"
+    done
+done
+tar --owner=0 --group=0 --numeric-owner -czf "dist/$NAME" -C "$STAGE" .
+cp "dist/$NAME" "linglong/sources/$NAME"
+
+SUM=$(sha256sum "dist/$NAME" | cut -d' ' -f1)
+URL="https://github.com/leleya-X/Linyaps-Seal/releases/download/$VERSION/$NAME"
 echo
-echo "产物:   $OUT ($(du -h "$OUT" | cut -f1))"
+echo "产物:   linglong/sources/$NAME 与 dist/$NAME ($(du -h "dist/$NAME" | cut -f1))"
 echo "sha256: $SUM"
 echo
-echo "打包时构建容器会从 dist/ 取它（见 linglong.yaml 的 build）。"
-echo "接下来直接跑 ./ll-killer layer build 或 ll-builder build 即可，不需要再做什么。"
+# 清单里钉的 digest 就是这份产物。两边对不上时远程构建会失败（digest 不符本就会
+# 拦住它），本地带 --offline 却照样能编 —— 于是这个不一致只在远程那边发作，
+# 在这儿说明白比在 Jenkins 日志里翻要容易
+MANIFEST_DIGEST=$(awk '/^sources:/{s=1} s&&/^[[:space:]]*digest:/{print $2;exit}' linglong.yaml)
+if [ "$MANIFEST_DIGEST" != "$SUM" ]; then
+    echo "!!! linglong.yaml 里 sources 的 digest 与此不符（清单是 $MANIFEST_DIGEST）。"
+    echo "!!! 要远程也能编，就把 linglong.yaml 的 sources 换成:"
+    echo
+    echo "sources:"
+    echo "  - kind: file"
+    echo "    url: $URL"
+    echo "    digest: $SUM"
+    echo
+    echo "!!! 并把这个产物传到 Release 的 $VERSION 标签下（本地带 --offline 不受影响）"
+else
+    echo "linglong.yaml 的 sources 已经是这份产物了。"
+fi
+echo
+echo "接下来：本地 ll-builder build --offline（或 ./ll-killer layer build），"
+echo "远程由构建机按清单里的 sources 自己下载。"

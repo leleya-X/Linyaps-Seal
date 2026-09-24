@@ -4,7 +4,6 @@ package:
   id: io.github.leleya-x.linyaps-seal
   name: linyaps-seal
   # 玲珑包版本必须四段。这是包版本, 和 pubspec.yaml 里的应用版本是两回事,
-  # 但要一起改: 图省事的话让前三位与本版本号保持一致
   version: 0.0.18.0
   kind: app
   description: |
@@ -14,22 +13,13 @@ package:
 command:
   - /opt/apps/io.github.leleya-x.linyaps-seal/files/bin/linyaps_seal
 
-# base 自带 GTK3 3.24.9，Flutter Linux 桌面端所需库均可满足，无需额外 runtime
 base: org.deepin.base/25.2.2
 
-# 这里**没有 sources**，构建不联网。
-#
-# Flutter 桌面端与宿主侧助手都要预先编好（构建容器里编不了：以 root 运行 flutter
-# 会被拒、SDK 的 include 路径在映射后的 rootfs 里断链；linyapsd 要按 musl 静态编，
-# 容器里也没有 zig），但产物不放在远端、不靠下载 ——
-# 谁 clone 下这个仓库，在自己机器上跑一次 packaging/make-prebuilt.sh 生成
-# dist/ 下那个包，构建容器通过挂载进来的工程目录就能直接读到它。
-# 也就是说：构建的输入全在仓库工作区里，没有一件要另外去网上拿。
-#
-# 代价是打包前必须先跑那一步，缺了就直接报错退出（install-prebuilt.sh 里）——
-# 不留「没有产物就编个凑合的包」那种退路：装出一个跑不起来的包，
-# 要等安装之后才发现。
+
+sources:
+  - kind: file
+    url: https://github.com/leleya-X/Linyaps-Seal/releases/download/0.0.18/linyaps-seal-0.0.18-x86_64-prebuilt.tar.gz
+    digest: ffcbacfb1037fc6ac994c47472cce781fbe4a87e893e5301120e5cfa726818ca
+
 build: |
-  # 安装动作全在脚本里：打包步骤得能被单跑、也能被单读，
-  # 关在 yaml 的多行字符串里就只能靠肉眼查错了
-  ./packaging/install-prebuilt.sh "$PREFIX"
+  ./packaging/install-prebuilt.sh "$PREFIX" linglong/sources
