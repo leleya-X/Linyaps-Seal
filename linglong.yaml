@@ -19,7 +19,7 @@ base: org.deepin.base/25.2.2
 sources:
   - kind: file
     url: https://github.com/leleya-X/Linyaps-Seal/releases/download/0.0.18/linyaps-seal-0.0.18-x86_64-prebuilt.tar.gz
-    digest: ffcbacfb1037fc6ac994c47472cce781fbe4a87e893e5301120e5cfa726818ca
+    digest: be2f2000e2f2a7e0581cb222b945946e59073f707664b9e5c30df761010ecbf4
 
 build: |
   ./packaging/install-prebuilt.sh "$PREFIX" linglong/sources
