@@ -1,22 +1,20 @@
 #!/bin/bash
-# 打出「预构建产物」包 —— linglong.yaml 的 sources 要取的就是它。
+# 打出「预构建产物」包 —— 打包时构建容器要装的就是它。
 #
 #   ./packaging/make-prebuilt.sh
 #
 # 产物：dist/linyaps-seal-<应用版本>-<架构>-prebuilt.tar.gz
 #
-# 为什么要把产物当源码喂给玲珑的构建容器，而不是让它在容器里现编：
+# 为什么产物在容器外编：玲珑的构建容器里编不了这两份 ——
 #   - Flutter 桌面端：构建跑在用户命名空间里，flutter 会因「以 root 运行」拒绝构建，
 #     而且 SDK 的 include 路径在映射后的 rootfs 里断链
 #   - linyapsd：按 musl 静态编，容器里没有 zig，也没有编 libdbus 静态库的那套工具
-# 于是两份都在容器外编好。这不是偷懒 —— 它是这个包能被**别人的构建机**重现的前提：
-# 源指向本地目录里的产物，在别人机器上要么直接失败，要么更糟 —— 用上一次的残留
-# 编出一个看着成功的旧包。
+# 所以先在这里编好，再由 packaging/install-prebuilt.sh（构建容器里跑的那一步）
+# 从 dist/ 取走 —— 整个工程目录是挂载进容器的，path 直通，不联网、不需要发布。
 #
-# 打完还有两件事，缺了它这个包就只是本地一个文件，别人的构建机拉不到：
-#   1. 把 tar.gz 传到 GitHub Release（tag 用应用版本号）
-#   2. 把它的 sha256 和下载 URL 填进 linglong.yaml 的 sources
-# 脚本最后会把这两行直接打出来。
+# 换版本、或者改了任何会进包的东西之后都要重跑一次：产物是工作区里一个
+# 不受版本约束的文件，忘了重打就会装进上一版的程序（install-prebuilt.sh 里
+# 有版本核对，对不上会直接报错，不会静悄悄地装错）。
 set -euo pipefail
 
 ROOT=$(dirname "$(readlink -f "$0")")/..
@@ -101,6 +99,5 @@ echo
 echo "产物:   $OUT ($(du -h "$OUT" | cut -f1))"
 echo "sha256: $SUM"
 echo
-echo "传到 GitHub Release 后，把这两行填进 linglong.yaml 的 sources（tag 换成实际用的）:"
-echo "  url: https://github.com/leleya-X/Linyaps-Seal/releases/download/<tag>/$(basename "$OUT")"
-echo "  digest: $SUM"
+echo "打包时构建容器会从 dist/ 取它（见 linglong.yaml 的 build）。"
+echo "接下来直接跑 ./ll-killer layer build 或 ll-builder build 即可，不需要再做什么。"

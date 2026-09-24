@@ -17,23 +17,18 @@ command:
 # base 自带 GTK3 3.24.9，Flutter Linux 桌面端所需库均可满足，无需额外 runtime
 base: org.deepin.base/25.2.2
 
-# Flutter 桌面端与宿主侧助手都要预先编好，作为源码拉进来 ——
-# 玲珑的构建容器里编不了这两份（以 root 运行 flutter 会被拒、SDK 的 include 路径
-# 在映射后的 rootfs 里断链；linyapsd 要按 musl 静态编，容器里也没有 zig）。
-# 预构建包由 packaging/make-prebuilt.sh 打出，内容就是装好之后 $PREFIX/bin/ 的那一层。
+# 这里**没有 sources**，构建不联网。
 #
-# 这里**不留**「容器里没有源就用同目录下现成的 build/ 产物顶上」的退路：
-# 那种退路只在打包机上走得通，到了别人的构建机上要么直接失败，
-# 要么装出一个内容和源对不上的包，而且两种情况都要过一阵子才现形 ——
-# 这个包要从别人的构建机上再编出来，靠的就是下面这两行。
-sources:
-  - kind: file
-    url: https://github.com/leleya-X/Linyaps-Seal/releases/download/0.0.18/linyaps-seal-0.0.18-x86_64-prebuilt.tar.gz
-    # digest 不是可选项。源里是二进制产物，没有它的话 URL 那头换了内容、
-    # 或者下到一半的东西，都会被照单全收编进包里，而构建日志上看不出任何异常。
-    # 改产物就必须连它一起改，两行对不上构建会直接失败，这正是想要的
-    digest: 2d3faa12e7c078cd6523de4540c7813e1278227e853c46af9071b7b9ab7983d4
-
+# Flutter 桌面端与宿主侧助手都要预先编好（构建容器里编不了：以 root 运行 flutter
+# 会被拒、SDK 的 include 路径在映射后的 rootfs 里断链；linyapsd 要按 musl 静态编，
+# 容器里也没有 zig），但产物不放在远端、不靠下载 ——
+# 谁 clone 下这个仓库，在自己机器上跑一次 packaging/make-prebuilt.sh 生成
+# dist/ 下那个包，构建容器通过挂载进来的工程目录就能直接读到它。
+# 也就是说：构建的输入全在仓库工作区里，没有一件要另外去网上拿。
+#
+# 代价是打包前必须先跑那一步，缺了就直接报错退出（install-prebuilt.sh 里）——
+# 不留「没有产物就编个凑合的包」那种退路：装出一个跑不起来的包，
+# 要等安装之后才发现。
 build: |
   # 安装动作全在脚本里：打包步骤得能被单跑、也能被单读，
   # 关在 yaml 的多行字符串里就只能靠肉眼查错了

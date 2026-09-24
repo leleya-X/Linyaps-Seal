@@ -116,11 +116,12 @@ Dart 包名 `linyaps_seal`，上游版权归原作者。按上游的 **GPLv2** �
 - 早期本分支用 systemd 用户服务把 states.json 复制进共享缓存，已改为上面的 D-Bus 方案
 - 新增 `linglong.yaml` 打包配置。配套的 ll-killer 是外部工具，不入库；它生成的
   `build-aux/` 脚本同理，已由 `.gitignore` 排除，首次打包前跑一次 `./ll-killer init`
-- `linglong.yaml` 不再假设构建机上已有本地编好的产物：Flutter bundle 与 linyapsd 改由
-  `sources`（`kind: file`，带 sha256）拉一份发布的预构建包，构建步骤收进
-  `packaging/install-prebuilt.sh`。原来的写法只有本机编得出来，别人的构建机上必然是
-  「缺文件」直接失败。新增 `packaging/make-prebuilt.sh` 负责打这份产物。
-  注意：改了 linyapsd 之后它是独立仓库，要照旧把版本号往上抬，否则宿主上那份换不掉
+- 打包步骤收进 `packaging/install-prebuilt.sh`：Flutter bundle 与 linyapsd 先在宿主上编成
+  一个预构建包（新增 `packaging/make-prebuilt.sh`，产物落在 `dist/`，不入库），
+  构建容器从挂载进来的工程目录直接读它 —— 构建全程不联网，也不需要另去发布一份。
+  脚本会核对包内版本和架构：产物过期、装错架构都直接报错，不会装出一个
+  「看着成功」的错包。注意：改了 linyapsd 之后它是独立仓库，要照旧把版本号往上抬，
+  否则宿主上那份换不掉
 - `pubspec.lock` 由忽略改为入库：这是应用不是库，锁文件该跟着走，别人 clone 下来
   才能装出一样的依赖树
 - 新增 `.gitattributes`：统一按 LF 入库检出，避免 Windows 上 clone 出来的

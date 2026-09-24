@@ -6,10 +6,11 @@
 # 也能在宿主机上拿个空目录试跑（不起容器，只验这一步本身）：
 #   mkdir -p /tmp/t && ./packaging/install-prebuilt.sh /tmp/t
 #
-# 这里只「装」不「编」：产物从 linglong/sources/ 下那份预构建包里取，
-# 生成方式见 packaging/make-prebuilt.sh。
-# **没有**「源不在就拿本地 build/ 目录顶上」的退路 —— 那种退路只在打包机上走得通，
-# 到了别人的构建机上要么直接失败，要么装出别的东西，而且两种情况都要过一阵子才现形。
+# 这里只「装」不「编」：产物是 packaging/make-prebuilt.sh 在宿主上打好的那一份，
+# 就在工作区的 dist/ 下。构建容器能看到它，是因为整个工程目录是挂载进去的 ——
+# 没有任何一件输入要联网去拿。
+# **没有**「没有产物就拿 build/ 里的半成品顶上」的退路：那种退路会装出一个
+# 缺部件或者版本对不上的包，而且要等装完才发现。
 set -euo pipefail
 
 PREFIX_DIR=${1:-}
@@ -21,22 +22,21 @@ fi
 ROOT=$(dirname "$(readlink -f "$0")")/..
 cd "$ROOT"
 
-# sources 目录里应当只有一份 tar.gz，就是这份预构建包。
-# 一份都没有，说明源没拉下来；多于一份，说明 linglong.yaml 被改出了别的源 ——
-# 两种都不去猜该用哪份：猜错的表现是"编出来的是一个内容和源对不上的包"，
-# 而它从构建日志上看不出任何异常
+# dist/ 下应当只有一份预构建包。
+# 一份都没有，说明还没跑 make-prebuilt.sh；多于一份（换版本时旧的没删）就不去猜 ——
+# 猜错的表现是"打出来的包内容和以为的不是同一份"，而构建日志上看不出任何异常
 SRC=""
-for f in linglong/sources/*.tar.gz; do
+for f in dist/*-prebuilt.tar.gz; do
     [ -e "$f" ] || continue     # 一个都没匹配上时 glob 会原样留着，跳过它
     if [ -n "$SRC" ]; then
-        echo "linglong/sources 下有不止一份 tar.gz，不知道该用哪份: $SRC 与 $f" >&2
+        echo "dist/ 下有不止一份预构建包，不知道该用哪份: $SRC 与 $f" >&2
+        echo "（换版本后旧的先删掉）" >&2
         exit 1
     fi
     SRC=$f
 done
 if [ -z "$SRC" ]; then
-    echo "linglong/sources 下没有预构建包 —— 它由 linglong.yaml 的 sources 拉取。" >&2
-    echo "本地要重新生成见 packaging/make-prebuilt.sh" >&2
+    echo "dist/ 下没有预构建包，先跑一次 packaging/make-prebuilt.sh" >&2
     exit 1
 fi
 echo "预构建包: $SRC"
@@ -59,6 +59,35 @@ test -x "$PREFIX_DIR/bin/linyapsd" || {
     echo "$SRC 里没有 linyapsd，装出来的包会缺穿透能力" >&2
     exit 1
 }
+
+# 版本对得上吗。产物来自工作区里一个不受版本约束的文件（以前靠源的 URL + sha256
+# 锁住，现在没有那层了），换版本时忘了重打，装进去的就是上一版的程序 ——
+# 而它照样能启动、界面照常显示，只有关于页里那个号是旧的。
+# 包里 version.json 是 Flutter 打的（见 pubspec.yaml 的注释），拿它跟真源比
+APP_VERSION=$(sed -n 's/^version:[[:space:]]*\(.*\)$/\1/p' pubspec.yaml)
+BUILT_VERSION=$(sed -n 's/.*"version":"\([^"]*\)".*/\1/p' "$PREFIX_DIR/bin/data/flutter_assets/version.json")
+if [ "$BUILT_VERSION" != "$APP_VERSION" ]; then
+    echo "预构建包是 $BUILT_VERSION 的，pubspec.yaml 是 $APP_VERSION ——" >&2
+    echo "产物过期了，重跑一次 packaging/make-prebuilt.sh" >&2
+    exit 1
+fi
+
+# 架构也对一下。装错架构的包，构建这一步是成功的，要到别的机器上运行才炸
+# （甚至不炸 —— 玲珑按架构挑包，这种包根本不会被选中）
+case "$(uname -m)" in
+    x86_64)  want=62  ;;
+    aarch64) want=183 ;;
+    *)       want=0   ;;    # 认不出的架构不拦，下面只校验认得出的那两种
+esac
+if [ "$want" != 0 ]; then
+    # ELF 头偏移 18 起的两个字节是 e_machine，小端；低字节够区分这两个架构
+    got=$(od -An -tu1 -j18 -N1 "$PREFIX_DIR/bin/linyaps_seal" | tr -d ' ')
+    if [ "$got" != "$want" ]; then
+        echo "$SRC 里的 linyaps_seal 不是 $(uname -m) 的产物（ELF e_machine=$got）" >&2
+        echo "架构不对的包在别的机器上编出来照样「成功」，所以在这儿挡住" >&2
+        exit 1
+    fi
+fi
 
 # 桌面入口与图标。装到 $PREFIX/share 下，玲珑会把它们导出到
 # /var/lib/linglong/entries/share（宿主的 XDG_DATA_DIRS 里有它），
