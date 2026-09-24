@@ -61,6 +61,12 @@ app.*.map.json
 /linglong/entry.sh
 # 打包时由 linglong.yaml 解析出来的依赖清单，同样是构建产物
 /linglong/depends.yaml
+# 由 linglong.yaml 的 sources 拉进来的预构建包，等于下载缓存，不是源文件
+/linglong/sources/
+
+# packaging/make-prebuilt.sh 打出来的预构建包（要传 GitHub Release，不入库）
+/dist/
+
 # 打包产物
 /*.layer
 /*.uab

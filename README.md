@@ -30,62 +30,9 @@
 flutter pub get
 flutter run -d linux                 # 开发调试
 flutter build linux --release        # 产出 build/linux/x64/release/bundle/
+
 ```
 
-## 打包成玲珑应用
-
-打包用 [ll-killer](https://github.com/System233/ll-killer-go/releases)，一个可下载的二进制，
-不入库。放到项目根目录后先跑一次 `./ll-killer init`，生成它要用的 `build-aux/`
-（那是工具的产物，和工具本身一样不入库）：
-
-```bash
-# 先编宿主侧助手，linglong.yaml 会把它和主程序装到一起
-cd linyapsd && ./tools/build-deps.sh && zig build -Doptimize=ReleaseSmall && cd ..
-
-flutter build linux --release
-./ll-killer layer build -o linyaps-seal.layer
-ll-cli install ./linyaps-seal.layer -y     # 需要桌面上的 polkit 授权确认
-ll-cli run io.github.leleya-x.linyaps-seal
-ll-cli uninstall io.github.leleya-x.linyaps-seal
-```
-
-几点注意：
-
-- Flutter 侧必须在**宿主机上**预先构建。ll-killer 的构建环境在用户命名空间里，flutter 会因
-  「以 root 运行」拒绝构建，且 SDK 的 include 路径在映射后的 rootfs 里断链。
-- **linyapsd 也要先编好**。`linglong.yaml` 里这一步是硬检查：产物不在就直接报错退出，
-  不会装出一个没有穿透能力的包。
-- `linglong.yaml` 的 `build` 段把整个 bundle 装到 `$PREFIX/bin/` 下。**不要**摊到 `$PREFIX/`，
-  否则 `lib/`、`data/` 会被叠加到容器根目录，覆盖关键路径。
-- 桌面入口与图标见下面「[桌面入口与图标](#桌面入口与图标)」，源文件在 `packaging/`。
-- `ll-cli install` 走 polkit 的 `auth_admin`，必须有桌面上的密码框被应答，否则报
-  `Error 9: polkit check failed`；非交互 shell 里调用会直接失败。
-- `org.deepin.base/25.2.2` 已提供 Flutter Linux 桌面端所需的全部库（GTK3、glib、cairo、pango、
-  harfbuzz、epoxy 等），不需要额外 runtime。
-- 若 `flutter build` 报 `CMakeCache.txt ... is different than the directory`，是构建缓存被
-  ll-killer 环境污染了，删掉 `build/linux` 重建即可。
-
-### 桌面入口与图标
-
-两者的源文件都在 [`packaging/`](packaging/)，`linglong.yaml` 把它们装到
-`$PREFIX/share/{applications,icons}`。玲珑会把 `files/share` 下的这两类文件导出到
-`/var/lib/linglong/entries/share`（这条路径在宿主的 `XDG_DATA_DIRS` 里），
-应用因此才出现在启动器里、窗口才认得出自己的图标。缺了它，包能跑，但启动器里找不到。
-
-- `packaging/io.github.leleya-x.linyaps-seal.desktop` 里的 `Exec=` 写的是**包内**路径。
-  打成包时 ll-killer 会自动改写成 `Exec=/usr/bin/ll-cli run <id> -- <原路径>`，
-  并补上 `X-linglong=`（`TryExec=/usr/bin/ll-cli` 由玲珑在安装时加）。
-  **别在这儿手写 `ll-cli`**，会被再套一层。
-- `packaging/linyaps-seal.svg` 是图标的源文件，改了要跑 `packaging/render-icons.sh`
-  重出各尺寸 PNG。PNG 是入库的，不在打包时现渲染：构建容器里不保证有 `rsvg-convert`，
-  与其让打包依赖一个不一定在的工具，不如把成品放进来。脚本同时也是校验手段 ——
-  跑完 `git status` 干净，就说明 PNG 和 SVG 对得上。
-- `Icon=` 与图标文件名都用包 ID，启动器靠它找到图标；窗口这边另有一条线 ——
-  窗口的 GTK application-id 跟着上游，是 `io.mozixun.linyaps_seal`，与包 ID 不同名，
-  所以 desktop 里写了 `StartupWMClass=` 把窗口认领回本入口。少了这一行，
-  任务栏认不出窗口属于谁，图标会退回通用图标。
-- 同一步里还会把 `LICENSE` 拷到包内 `share/doc/linyaps-seal/`。本项目按 GPLv2 分发，
-  该许可要求随二进制附上全文；不装的话，拿到包的人手上就没有本该随附的那一份。
 
 ### 容器内的数据来源
 
@@ -140,7 +87,7 @@ rm -rf ~/.local/share/linyapsd
 Dart 包名 `linyaps_seal`，上游版权归原作者。按上游的 **GPLv2** 许可分发，[LICENSE](LICENSE) 全文保留。
 本分支仓库在 <https://github.com/leleya-X/Linyaps-Seal>。
 
-本分支相对上游的修改（GPLv2 要求的修改标注）：
+本分支相对上游的修改：
 
 - 命名一律跟随上游：Dart 包名与二进制名 `linyaps_seal`、窗口标题 `linyaps-seal`、
   GTK application-id `io.mozixun.linyaps_seal` 都原样保留，`linux/` 下与上游一字不差，
@@ -169,6 +116,11 @@ Dart 包名 `linyaps_seal`，上游版权归原作者。按上游的 **GPLv2** �
 - 早期本分支用 systemd 用户服务把 states.json 复制进共享缓存，已改为上面的 D-Bus 方案
 - 新增 `linglong.yaml` 打包配置。配套的 ll-killer 是外部工具，不入库；它生成的
   `build-aux/` 脚本同理，已由 `.gitignore` 排除，首次打包前跑一次 `./ll-killer init`
+- `linglong.yaml` 不再假设构建机上已有本地编好的产物：Flutter bundle 与 linyapsd 改由
+  `sources`（`kind: file`，带 sha256）拉一份发布的预构建包，构建步骤收进
+  `packaging/install-prebuilt.sh`。原来的写法只有本机编得出来，别人的构建机上必然是
+  「缺文件」直接失败。新增 `packaging/make-prebuilt.sh` 负责打这份产物。
+  注意：改了 linyapsd 之后它是独立仓库，要照旧把版本号往上抬，否则宿主上那份换不掉
 - `pubspec.lock` 由忽略改为入库：这是应用不是库，锁文件该跟着走，别人 clone 下来
   才能装出一样的依赖树
 - 新增 `.gitattributes`：统一按 LF 入库检出，避免 Windows 上 clone 出来的
