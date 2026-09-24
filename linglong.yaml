@@ -5,7 +5,7 @@ package:
   name: linyaps-seal
   # 玲珑包版本必须四段。这是包版本, 和 pubspec.yaml 里的应用版本是两回事,
   # 但要一起改: 图省事的话让前三位与本版本号保持一致
-  version: 0.0.19.0
+  version: 0.0.18.0
   kind: app
   description: |
     如意玲珑应用权限管理器（基于社区项目 Linyaps-Seal 的玲珑打包版，GPLv2）。

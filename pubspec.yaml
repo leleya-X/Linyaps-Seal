@@ -12,7 +12,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # 这是应用版本号的唯一真源: Flutter 打包时会写进 bundle 里的
 # data/flutter_assets/version.json, 程序运行时从那儿读(见 lib/utils/app_version/)。
 # 改了这里, 记得同步 linglong.yaml 的 package.version(那是玲珑包版本, 要四段)。
-version: 0.0.19
+version: 0.0.18
 
 environment:
   sdk: ^3.10.4
